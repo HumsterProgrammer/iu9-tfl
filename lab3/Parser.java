@@ -182,6 +182,13 @@ class NonTerm extends Term{
 		}
 		rewriteRules.get(rewriteRules.size()-1).add(t);
 	}
+	public String alternativeString(int i){
+		String result = "";
+		for(Term j: rewriteRules.get(i)){
+			result += j.getName();
+		}
+		return result;
+	}
 	
 	@Override
 	public String toString(){
