@@ -3,8 +3,8 @@ import java.util.LinkedList;
 
 class LLK{
 	static int maxK = 3;
-	int K = maxK;
-	ArrayList<NonTerm> rules;
+	private int K = maxK;
+	private ArrayList<NonTerm> rules;
 	ArrayList<ArrayList<LLKResult>> firstK;
 	ArrayList<ArrayList<String>> followK;
 
@@ -48,6 +48,10 @@ class LLK{
 		for(ArrayList<String> i : t.FollowK){
 			System.out.println(i);
 		}
+		
+		
+		LLKNormalize normalizer = new LLKNormalize((ArrayList<NonTerm>)rules.clone(), K);
+		
 	}
 	
 	public ArrayList<NonTerm> getRules(){return rules;}
@@ -86,25 +90,14 @@ class LLK{
 				return false;
 		}
 		return true;
-	}
-	
+	}	
 	void minimizeFirst(int k){
-		
 		for(ArrayList<LLKResult> i : firstK){
-			//ArrayList<LLKResult> tmp = new ArrayList<LLKResult>();
 			for(LLKResult j : i){
 				j.pref = j.pref.substring(0, min(k, j.pref.length()));
 			}
 		}
-		/*
-		for(ArrayList<String> i : followK){
-			//ArrayList<String> tmp = new ArrayList<LLKResult>();
-			for(String j : i){
-				j = j.substring(0, min(k, j.pref.length()));
-			}
-		}*/
 	}
-
 	public void checkLLK(int k) throws LLKException{
 		for(int index=0; index < firstK.size(); index++){
 			ArrayList<LLKResult> nt_firstk = firstK.get(index);
@@ -144,13 +137,13 @@ class LLK{
 		int index = 1;
 		
 		ArrayList<String> tests = new ArrayList<String>();
-		tests.add("S -> aSa \n S->ab\n"); // LL(2)
-		tests.add("S -> aS1 \n S -> a \n S1 -> aS2\n S2 -> aS \n S2 -> b\n"); //LL(3)
-		tests.add("S -> aSaS\n S->aabS\n S->ba\n"); //not LL(3)
-		tests.add("S -> bSb\n S->bT\n T->aT\nT->a\n"); // LL(2)
-		tests.add("S -> aSa\n S->b\n"); //LL(1)
-		tests.add("S-> aSSa\n S->abS\n S -> baS \n S->bb\n"); // not LL(3)
+		//tests.add("S -> aSaS\n S->aabS\n S->ba\n"); //not LL(3)
+		//tests.add("S-> aSSa\n S->abS\n S -> baS \n S->bb\n"); // not LL(3)
+		//tests.add("S -> aSa\n S->b\n"); //LL(1)
+		//tests.add("S -> aSa \n S->ab\n"); // LL(2)
+		//tests.add("S -> bSb\n S->bT\n T->aT\nT->c\n"); // LL(2)
 		tests.add("S -> aEb\n S->ab \n E -> S\n E -> TS\n T -> cT \n T -> c\n"); // LL(2)
+		//tests.add("S -> aS1 \n S -> a \n S1 -> aS2\n S2 -> aS \n S2 -> b\n"); //LL(2)
 		
 		Parser r = new Parser();
 		for(String test : tests){
@@ -168,6 +161,179 @@ class LLK{
 				System.err.println(e);
 			}
 			System.out.println(separator + "\n");
+			//return;
+		}
+	}
+	
+	class LLKNormalize{
+		ArrayList<NonTerm> grammar;
+		ArrayList<NonTerm> newGrammar;
+		int llK;
+		
+		int counter = 1;
+		
+		LLKNormalize(ArrayList<NonTerm> r, int k){
+			this.grammar = r;
+			this.llK = k;
+			
+			toNormalLLK();
+		}
+		void toNormalLLK(){ // k вычисляется ранее
+			// функция приводит грамматику к виду A -> a1 a2... an S1 S2 ... || A -> a1 ... ak
+			while(true){
+				newGrammar = new ArrayList<NonTerm>();
+				boolean isNormal = true;
+				for(NonTerm i : grammar){
+					isNormal = toLLK_loop(i) && isNormal;
+				}
+				if(isNormal)
+					break;
+				
+				for(NonTerm i: grammar){
+					System.out.println(i);
+				}
+				System.out.println("-------------");
+				
+				for(NonTerm i : grammar){
+					newGrammar.add(i);
+					suffixToNewRule(i);
+				}
+				for(NonTerm i: newGrammar){
+					System.out.println(i);
+				}
+				grammar = newGrammar;
+				System.out.println("==============================");
+			}
+			for(NonTerm i: grammar){
+				System.out.println(i);
+			}
+			System.out.println("==============================");
+		}
+		
+		boolean toLLK_loop(NonTerm i){
+			boolean isNormal = true;
+			for(int j = 0; j < i.rewriteRules.size(); j++){
+				//System.out.println(i.rewriteRules.get(j));
+				//System.out.println(checkNormalForm(i.rewriteRules.get(j)));
+				if(!checkNormalForm(i.rewriteRules.get(j))){
+					expandRule(i, j);
+					toLLK_loop(i);
+					isNormal = false;
+				} // ДОБАВИТЬ ПРОВЕРКУ В ЦИКЛЕ ЧТО ВСЕ ПРАВИЛЬНО РАСШИРИЛОСЬ!
+			}
+			return isNormal;
+		}
+		
+		boolean checkNormalForm(ArrayList<Term> rewriteRule){
+			int counter = 0;
+			for(Term i: rewriteRule){
+				if(counter == llK) return true;
+				
+				if(i.isNonTerm()) return false;
+				counter++;
+			}
+			return true;
+		}
+		
+		void expandRule(NonTerm symbol, int alt){
+			ArrayList<ArrayList<Term>> expanded = new ArrayList<ArrayList<Term>>();
+			ArrayList<Term> rule = symbol.rewriteRules.get(alt);
+			boolean expandedFlag = false;
+			
+			expanded.add(new ArrayList<Term>());
+			
+			for(Term i : rule){
+				if(i.isNonTerm() && (!expandedFlag)){
+					// ДОБАВИТЬ ЗАМЫКАНИЕ!!!!!
+					ArrayList<ArrayList<Term>> newexpanded = new ArrayList<ArrayList<Term>>();
+					for(int index =0; index < expanded.size(); index++){
+						for(ArrayList<Term> ruleK : ((NonTerm)i).rewriteRules){
+							ArrayList<Term> j = (ArrayList<Term>)expanded.get(index).clone();
+							j.addAll(ruleK);
+							newexpanded.add(j);
+						}
+					}
+					expanded = newexpanded;
+					expandedFlag = true;
+				}else{
+					//System.out.println(i);
+					for(ArrayList<Term> e : expanded){
+						e.add(i);
+						//expanded.set(index, expanded.get(index).add(i));
+					}
+					//System.out.println(expanded);
+				}
+			}
+			//System.out.println(expanded);
+			symbol.rewriteRules.remove(alt); 
+			for(ArrayList<Term> i : expanded){
+				symbol.rewriteRules.add(i);
+			}
+		}
+		
+		boolean checkEqvPref(ArrayList<Term> a, ArrayList<Term> b, int k){
+			//System.out.println("checkEqvPref: "+a+" "+b);
+			
+			if(a.size() < k || b.size() < k)
+				return false;
+			for(int i = 0; i< k; i++){
+				if(!a.get(i).equals(b.get(i))) return false;
+			}
+			return true;
+		}
+		
+		void suffixToNewRule(NonTerm symbol){
+			// check conflicts
+			//ArrayList<ArrayList<Term>> suffixes
+			// немножко говнокода: чтобы не заводить доп переменных, в время обработки новые правила будут иметь вид префикс + правила раскрытия. После первый элемент будет убран
+			ArrayList<NonTerm> pref = new ArrayList<NonTerm>();
+			ArrayList<ArrayList<Term>> newRewriteRule = new ArrayList<ArrayList<Term>>();
+			ArrayList<ArrayList<Integer>> indexes = new ArrayList<ArrayList<Integer>>();
+			
+			for(ArrayList<Term> rule : symbol.rewriteRules){
+				if(rule.size() > llK){
+					boolean unique = true;
+					for(NonTerm i : pref){
+						if(checkEqvPref(rule, i.rewriteRules.get(0), llK)){  
+							// уже добавлен префикс - добавить новый суфикс
+							i.rewriteRules.add(new ArrayList<Term>(rule.subList(llK, rule.size())));
+							indexes.get(pref.indexOf(i)).add(symbol.rewriteRules.indexOf(rule));
+							unique = false;
+						}
+					}
+					if(unique){ // найден новый уникальный префикс. Запоминаем.
+						NonTerm newSymbol = new NonTerm(String.format("[%s%d]", symbol.getName(), counter++));
+						newSymbol.rewriteRules.add(new ArrayList<Term>(rule.subList(0, llK)));
+						newSymbol.rewriteRules.add(new ArrayList<Term>(rule.subList(llK, rule.size())));
+						indexes.add(new ArrayList<Integer>());
+						indexes.get(indexes.size()-1).add(symbol.rewriteRules.indexOf(rule));
+						pref.add(newSymbol);
+					}
+				}else{
+					newRewriteRule.add(rule);
+				}
+			}
+			
+			for(NonTerm i : pref){
+				if(i.rewriteRules.size() > 2){ // больше одного уникального суффикса(префикс и собстна суффикс)
+					ArrayList<Term> prefix = i.rewriteRules.get(0);
+					i.rewriteRules.remove(0);
+					prefix.add(i);
+					newRewriteRule.add(prefix);
+					
+					toLLK_loop(i);
+					
+					newGrammar.add(i);
+				}else{
+					for(Integer index : indexes.get(pref.indexOf(i))){
+						newRewriteRule.add(symbol.rewriteRules.get(index));
+					}
+				}
+			}
+			//System.out.println("indexes: "+indexes);
+			//System.out.println("newRewriteRule: "+newRewriteRule);
+			//System.out.println("pref: "+pref);
+			symbol.rewriteRules = newRewriteRule;
 		}
 	}
 	
