@@ -190,6 +190,26 @@ class NonTerm extends Term{
 		return result;
 	}
 	
+	public boolean checkEqv(NonTerm nterm){
+		System.out.println(this);
+		System.out.println(nterm);
+		if(rewriteRules.size() != nterm.rewriteRules.size())
+			return false;
+		
+		for(ArrayList<Term> i : nterm.rewriteRules){
+			boolean r = false;
+			for(ArrayList<Term> j : this.rewriteRules){
+				if(i.equals(j)){
+					r = true;
+					break;
+				}
+			}
+			if(!r)
+				return false;
+		}
+		return true;
+	}
+	
 	@Override
 	public String toString(){
 		String result = this.name;

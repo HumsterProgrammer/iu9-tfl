@@ -49,8 +49,8 @@ class LLK{
 			System.out.println(i);
 		}
 		
-		
-		LLKNormalize normalizer = new LLKNormalize((ArrayList<NonTerm>)rules.clone(), K);
+		System.out.println(tableString());
+		//LLKNormalize normalizer = new LLKNormalize((ArrayList<NonTerm>)rules.clone(), K);
 		
 	}
 	
@@ -127,23 +127,54 @@ class LLK{
 		}
 		return result;
 	}
-	/*
-	public LLK toHomsk(){
-		return null;
+	
+	public String tableString(){
+		ArrayList<String> uniquePrefix = new ArrayList<String>();
+		
+		for(ArrayList<LLKResult> i: firstK){
+			for(LLKResult j : i){
+				if(!uniquePrefix.contains(j.pref))
+					uniquePrefix.add(j.pref);
+			}
+		}
+		String result = "\t|\t";
+		for(String i: uniquePrefix){
+			result += i + "\t";
+		}
+		result += "\n----------------------\n";
+		for(int i =0; i<rules.size(); i++){
+			result += rules.get(i).getName() + "\t|\t";
+			for(String pref: uniquePrefix){
+				ArrayList<Term> r = null;
+				for(LLKResult jep: firstK.get(i)){
+					if(jep.pref.equals(pref))
+						r = rules.get(i).rewriteRules.get(jep.indexOfAlternative); 
+				}
+				if(r == null){
+					result += "-";
+				}else{
+					for(Term jiga : r){
+						result += jiga.getName();
+					}
+				}
+				result += "\t";
+			}
+			result += "\n";
+		}
+		return result;
 	}
-	*/
 	public static void main(String[] args){
 		String separator = "---------------------------------------";
 		int index = 1;
 		
 		ArrayList<String> tests = new ArrayList<String>();
-		//tests.add("S -> aSaS\n S->aabS\n S->ba\n"); //not LL(3)
-		//tests.add("S-> aSSa\n S->abS\n S -> baS \n S->bb\n"); // not LL(3)
-		//tests.add("S -> aSa\n S->b\n"); //LL(1)
-		//tests.add("S -> aSa \n S->ab\n"); // LL(2)
-		//tests.add("S -> bSb\n S->bT\n T->aT\nT->c\n"); // LL(2)
+		tests.add("S -> aSaS\n S->aabS\n S->ba\n"); //not LL(3)
+		tests.add("S-> aSSa\n S->abS\n S -> baS \n S->bb\n"); // not LL(3)
+		tests.add("S -> aSa\n S->b\n"); //LL(1)
+		tests.add("S -> aSa \n S->ab\n"); // LL(2)
+		tests.add("S -> bSb\n S->bT\n T->aT\nT->c\n"); // LL(2)
 		tests.add("S -> aEb\n S->ab \n E -> S\n E -> TS\n T -> cT \n T -> c\n"); // LL(2)
-		//tests.add("S -> aS1 \n S -> a \n S1 -> aS2\n S2 -> aS \n S2 -> b\n"); //LL(2)
+		tests.add("S -> aS1 \n S -> a \n S1 -> aS2\n S2 -> aS \n S2 -> b\n"); //LL(2)
 		
 		Parser r = new Parser();
 		for(String test : tests){
@@ -321,15 +352,32 @@ class LLK{
 					prefix.add(i);
 					newRewriteRule.add(prefix);
 					
-					toLLK_loop(i);
-					
-					newGrammar.add(i);
+					//toLLK_loop(i);
+					boolean isNonEq = false;
+					for(NonTerm j: grammar){
+						if(i.checkEqv(j)){
+							isNonEq = true;
+							break;
+						}
+					}
+					for(NonTerm j: newGrammar){
+						if(isNonEq)
+							break;
+						if(i.checkEqv(j)){
+							isNonEq = true;
+						}
+					}
+					System.out.println(isNonEq);
+					if(!isNonEq){
+						newGrammar.add(i);
+					}
 				}else{
 					for(Integer index : indexes.get(pref.indexOf(i))){
 						newRewriteRule.add(symbol.rewriteRules.get(index));
 					}
 				}
 			}
+			System.out.println(newGrammar);
 			//System.out.println("indexes: "+indexes);
 			//System.out.println("newRewriteRule: "+newRewriteRule);
 			//System.out.println("pref: "+pref);
